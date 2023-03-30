@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"math/rand"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -211,7 +212,7 @@ func (folder *Folder) ListFolder() (objects []storage.Object, subFolders []stora
 			objName := strings.TrimPrefix(objAttrs.Name, prefix)
 			if objName != "" {
 				// GCS returns the current directory - skip it.
-				objects = append(objects, storage.NewLocalObject(objName, objAttrs.Updated, objAttrs.Size))
+				objects = append(objects, storage.NewLocalObject(objName, objAttrs.Created, objAttrs.Size))
 			}
 		}
 	}
@@ -284,7 +285,7 @@ func (folder *Folder) PutObject(name string, content io.Reader) error {
 	tmpChunks := make([]*gcs.ObjectHandle, 0)
 
 	for {
-		tmpChunkName := folder.joinPath(name+"_chunks", "chunk"+strconv.Itoa(chunkNum))
+		tmpChunkName := folder.joinPath(name+"_chunks"+strconv.Itoa(os.Getpid()), "chunk"+strconv.Itoa(chunkNum))
 		objectChunk := folder.BuildObjectHandle(folder.joinPath(folder.path, tmpChunkName))
 		chunkUploader := NewUploader(objectChunk, folder.uploaderOptions...)
 		dataChunk := chunkUploader.allocateBuffer()
@@ -320,7 +321,7 @@ func (folder *Folder) PutObject(name string, content io.Reader) error {
 
 		if len(tmpChunks) == composeChunkLimit {
 			// Since there is a limit to the number of components that can be composed in a single operation, merge chunks partially.
-			compositeChunkName := folder.joinPath(name+"_chunks", "composite"+strconv.Itoa(chunkNum))
+			compositeChunkName := folder.joinPath(name+"_chunks"+strconv.Itoa(os.Getpid()), "composite"+strconv.Itoa(chunkNum))
 			compositeChunk := folder.BuildObjectHandle(folder.joinPath(folder.path, compositeChunkName))
 
 			tracelog.DebugLogger.Printf("Compose temporary chunks into an intermediate chunk %v\n", compositeChunkName)
